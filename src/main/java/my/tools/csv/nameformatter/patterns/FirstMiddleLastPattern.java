@@ -16,12 +16,23 @@ public class FirstMiddleLastPattern extends NamePattern{
 	public Name transform() {
 
 		Name outputName = new Name();
+		try {
 		String[] names=originalText.split(" ");
 		outputName.originalText=originalText;
 		outputName.firstName=names[0];
 		outputName.middleName=names[1];
-		outputName.lastName=names[2];	
+		outputName.lastName=names[2];
+		outputName.transformed=true;
+		outputName.capitalize();
+	}
+	catch(Exception e) {
 		
+		System.out.println("Failure processing FirstMiddleLastPattern:"+outputName.toString());
+		e.printStackTrace();
+	
+		
+	}
+	
 		
 		return outputName;
 	}

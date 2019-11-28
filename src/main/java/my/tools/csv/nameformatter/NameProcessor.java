@@ -14,23 +14,18 @@ import java.util.regex.Pattern;
 import com.opencsv.CSVReader;
 import com.opencsv.CSVWriter;
 
+public class NameProcessor implements Runnable{
 
-
-public class NameFormatter {
-	
 	private NameParser parser;
 	private StatusListener listener;
+	Instant startTime;	
 	
-	
-	public static void main(String args[]) {	
+	public void run() {		
 		
-	
-		NameFormatter formatter = new NameFormatter();
 		
-			
 		try {
 			
-		Instant startTime = Instant.now();	
+			startTime = Instant.now();	
 		
 		CSVReader reader = new CSVReader(new FileReader("/Users/toxavier/Documents/Projects/UW/alldata.csv"));
 		String[] record = null;
@@ -62,10 +57,10 @@ public class NameFormatter {
 		reader.readNext();
 		//formatter.parser=thirdPartyParser;
 		
-		formatter.parser=customParser;
+		parser=customParser;
 		boolean isReprocessed=false;
 		int begin=80000;
-		int end=120000;
+		int end=81000;
 		while((record=reader.readNext())!=null) {
 			
 			
@@ -76,7 +71,7 @@ public class NameFormatter {
 			
 			
 			
-			formatter.parser=customParser;	
+			parser=customParser;	
 			isReprocessed=false;
 			target = new String[4];
 			String name = record[73];			
@@ -92,12 +87,12 @@ public class NameFormatter {
 				continue;				
 			}
 			
-			name = formatter.preProcess(name);			
-			Name formattedName = formatter.parser.parse(name);
+			name = preProcess(name);			
+			Name formattedName = parser.parse(name);
 			
 			if(formattedName==null) { //Custom Parser cannot process the pattern
-				formatter.parser=thirdPartyParser;	
-				formattedName = formatter.parser.parse(name);	
+				parser=thirdPartyParser;	
+				formattedName = parser.parse(name);	
 				if(formattedName!=null) {
 					reprocessedRecs.add(formattedName.toStringArray());
 					 reprocessed++;
@@ -125,9 +120,9 @@ public class NameFormatter {
 			output.add(names);  
 			
 			
-			if((total%1000)==0) {
-				formatter.updateStatus(total);
-				timeElapsed(startTime);
+			if((total%100)==0) {
+				updateStatus(total,false);
+				//timeElapsed();
 			}
 			
 			
@@ -156,30 +151,55 @@ public class NameFormatter {
 		System.out.println("Skipped:"+skipped);
 		System.out.println("Reprocessed:"+reprocessed);
 		System.out.println("Sucess rate:"+(sucess*100.0)/(total-begin));
-		
+		updateStatus(total,true);
 		}
 		catch(FileNotFoundException fnfe)
 		{
-			fnfe.printStackTrace();
+			fnfe.printStackTrace();		
+			updateError(fnfe.getMessage());
+			
 		}
 		catch(IOException ioe) {
 			ioe.printStackTrace();
+			updateError(ioe.getMessage());
 		}
+		
+		
 		
 	}
 	
 	
-	private void updateStatus(int numRecs) {
+	private void updateStatus(int numRecs,boolean completed) {
 		
 		System.out.println("Number of Recs Processed:"+numRecs);
 		
 		
 		if(listener==null)
 			return;
+		
 		StatusEvent status = new StatusEvent();
 		status.recordsProcessed=numRecs;
+		status.timeElapsed=timeElapsed();
+		status.completed=completed;
 		listener.statusChanged(status);
 	}
+	
+	
+	
+	private void updateError(String message) {
+		
+		if(listener==null)
+			return;
+		
+		StatusEvent status = new StatusEvent();		
+		status.timeElapsed=timeElapsed();
+		status.failed=true;
+		status.errorMessage=message;
+		listener.statusChanged(status);
+		
+		
+	}
+	
 	
 	public void addStatusListener(StatusListener listener) {
 		
@@ -275,13 +295,13 @@ public class NameFormatter {
 	}
 	
 	
-	private static void timeElapsed(Instant start) {
+	private  long timeElapsed() {
 		
 		 Instant currentTime = Instant.now();
-		 long timeElapsed = Duration.between(start, currentTime).toMillis();
+		 long timeElapsed = Duration.between(startTime, currentTime).toMillis();
 		 
-		 System.out.println("Minutes so far..."+timeElapsed/(60000));
-		 
+		 //System.out.println("Minutes so far..."+timeElapsed/(60000));
+		 return timeElapsed/(60000);
 		 
 		
 	}

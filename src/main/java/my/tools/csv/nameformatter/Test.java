@@ -3,66 +3,76 @@ package my.tools.csv.nameformatter;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import my.tools.csv.nameformatter.patterns.NamePattern;
+
 public class Test {
 	
 	public static void main(String[] args) {
 		
+		String str="SUNDY J MICHAEL X";
 		
-		Matcher m =null;
-		Pattern firstlast = Pattern.compile("[a-zA-Z][a-zA-Z]+\\s[a-zA-Z][a-zA-Z]+");
-		Pattern lastcommafirst = Pattern.compile("[a-zA-Z][a-zA-Z]+[,]\\s?[a-zA-Z][a-zA-Z]+");
-		Pattern firstMiddleLast = Pattern.compile("[a-zA-Z][a-zA-Z]+\\s[a-zA-Z][a-zA-Z]+\\s[a-zA-Z][a-zA-Z]+");
-		Pattern lastCommaFirstInit = Pattern.compile("[a-zA-Z][a-zA-Z]+[,]\\s?[a-zA-Z][a-zA-Z]+\\s[a-zA-Z]{1}");
-		Pattern firstlastInitial = Pattern.compile("[a-zA-Z][a-zA-Z]+\\s?[a-zA-Z][a-zA-Z]+\\s[a-zA-Z]{1}");
+		//str=preProcess( str);
+		//System.out.println(str);
 		
+		patternTest(str);
 		
-		 m = firstlast.matcher("Lo M");
-		boolean isFirstLast = m.matches();
-		
-		m=lastcommafirst.matcher("Xavier,Tony");
-		boolean isLastCommaFirst = m.matches();
-		
-		m=firstMiddleLast.matcher("Tony K Xavier");
-		boolean isFirstMiddleLast = m.matches();
-		
-		m=lastCommaFirstInit.matcher("Xavier, Tony K");
-		boolean isLastCommaFirstInit=m.matches();
-		
-		
-		m=firstlastInitial.matcher("Tony Xavier Ko");
-		boolean isFirstlastInitial=m.matches();
-		
-		
-		
-	    if(isFirstLast)
-	    	System.out.println("First Last");
-	    else
-	    	System.out.println("Not First Last");
-	    
-	    
-	    
-	    if(isLastCommaFirst)
-	    	System.out.println("Last, First");
-	    else
-	    	System.out.println("Not Last, First");
-	    
-	    
-	    if(isFirstMiddleLast)
-	    	System.out.println("First Middle Last");
-	    else
-	    	System.out.println("Not First Middle Last");
-	    
-	    if(isLastCommaFirstInit)
-	    	System.out.println("Last, First Init");
-	    else
-	    	System.out.println("Not Last, First Init");
-	    
-	    if(isFirstlastInitial)
-	    	System.out.println("First Last Init");
-	    else
-	    	System.out.println("Not First Last Init");
-	    
+		NamePattern namePatterns = NamePatternFactory.getNamePattern(str);
+		CustomNameParser customParser = new CustomNameParser();
+		Name formattedName = customParser.parse(str);
+		//System.out.println(formattedName);
 		
 	}
+	
+	
+	private static void patternTest(String str) {
+		
+		Pattern pattern = Pattern.compile("[a-zA-Z][a-zA-Z]+\\s[a-zA-Z]{1}\\s[a-zA-Z][a-zA-Z]+");
+		Matcher m = pattern.matcher(str);
+		
+		if(m.matches()) {
+			
+			System.out.println("Pattern matched!");
+			
+		}
+		else
+			System.out.println("Pattern NOT matched!");
+		
+		Name outputName = new Name();
+		try {		
+		String[] names=str.split(" ");
+		
+		}
+		catch(Exception e) {
+			
+			System.out.println("Failure processing FirstLastInitialPattern:"+outputName.toString());
+			e.printStackTrace();		
+			
+		}
+
+		
+		
+	}
+		
+		
+		
+		private static String preProcess(String str) {
+			
+			
+			str = str.toUpperCase().trim();
+			
+			if(str.contains(" JR"))
+				str=str.replace(" JR", "");
+			
+			if(str.contains(" SR"))
+				str=str.replace(" SR", "");
+			
+			if(str.contains(" ET AL"))
+				str=str.replace(" ET AL", "");
+			
+						
+			return str;
+		}
+		
+	
 
 }

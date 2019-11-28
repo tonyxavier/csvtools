@@ -15,7 +15,8 @@ public class LastCommaFirstPattern extends NamePattern{
 
 	public Name transform() {
 
-		Name outputName = new Name();		
+		Name outputName = new Name();
+		try {
 		String[] names = originalText.split(" ");
 		String first = names[1];
 		String last = names[0];
@@ -25,7 +26,17 @@ public class LastCommaFirstPattern extends NamePattern{
 		outputName.originalText = originalText;
 		outputName.firstName=first;
 		outputName.lastName=last;
+		outputName.transformed=true;
+		outputName.capitalize();
+	}
+	catch(Exception e) {
 		
+		System.out.println("Failure processing LastCommaFirstPattern"+outputName.toString());
+		e.printStackTrace();
+	
+		
+	}
+	
 		
 		
 		return outputName;
