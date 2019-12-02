@@ -3,7 +3,7 @@ package my.tools.csv.nameformatter;
 public class StatusEvent {
 	
 	int recordsProcessed;
-	int skipped,sucess;
+	int skippedCnt,orgCnt,namesCnt;
 	long timeElapsed;
 	
 	boolean completed=false;

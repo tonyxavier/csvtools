@@ -1,184 +1,190 @@
 package my.tools.csv.nameformatter;
 
+import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileReader;
-import java.io.FileWriter;
 import java.io.IOException;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
+
 
 import com.opencsv.CSVReader;
-import com.opencsv.CSVWriter;
+
 
 public class NameProcessor implements Runnable{
 
 	private NameParser parser;
 	private StatusListener listener;
-	Instant startTime;	
+	private Instant startTime;	
+	private File dataFile,saveFile;
 	
-	public void run() {		
+	private List<String[]> outputRecords,orgRecords,reprocessedRecords,skippedRecords,allProcessedRecords;
+	
+	private int nameFieldIndex;
+	
+	private int totalCnt=0,orgCnt=0,namesCnt=0,reprocessedCnt=0,skippedCnt; 
+	
+	private ThirdPartyNameParser thirdPartyParser;
+	private CustomNameParser customParser;
+	
+	
+	public NameProcessor(File dataFile,File saveFile) {
+		this.dataFile=dataFile;
+		this.saveFile=saveFile;
 		
+	}	
+	
+	public void run() {				
 		
-		try {
+	 CSVReader reader=null;
+	  try {			
+	    startTime = Instant.now();	
+		
+		reader = new CSVReader(new FileReader(dataFile));
+		
+		String[] record = reader.readNext();
+		nameFieldIndex = Utils.getCsvFieldIndex(record, "OWN_NAME");		
+		if(nameFieldIndex==-1) {//The file does not have "OWN_NAME" field
+			updateError("Uploaded file does not have OWN_NAME field");			
+			return;		
 			
-			startTime = Instant.now();	
+		 }
 		
-		CSVReader reader = new CSVReader(new FileReader("/Users/toxavier/Documents/Projects/UW/alldata.csv"));
-		String[] record = null;
-		
-		String[] target = {"Original Text","First Name","Middle Name","Last Name"};
-		
-		List<String[]> output = new ArrayList<String[]>();
-		List<String[]> skippedRecs = new ArrayList<String[]>();
-		List<String[]> reprocessedRecs = new ArrayList<String[]>();
-		reprocessedRecs.add(target);
-		output.add(target);
-		
-		
-		FileWriter writer = new FileWriter("/Users/toxavier/Documents/Projects/UW/formatted_names.csv");
-		FileWriter skipwriter = new FileWriter("/Users/toxavier/Documents/Projects/UW/skipped_names.csv");
-		FileWriter reprocesswriter = new FileWriter("/Users/toxavier/Documents/Projects/UW/reprocessed_names.csv");
-		
-		
-		CSVWriter csvWriter = new CSVWriter(writer);
-		CSVWriter skipcsvWriter = new CSVWriter(skipwriter);
-		CSVWriter reprocesscsvWriter = new CSVWriter(reprocesswriter);
-		
-
+		initialize(record);			
+				
+		int begin=0;		
+	    int end=140000;	
+	   // int end=Integer.MAX_VALUE;
+	    int currentRec=0;
+		while((record=reader.readNext())!=null) {			
 			
-		ThirdPartyNameParser thirdPartyParser = new ThirdPartyNameParser();
-		CustomNameParser customParser = new CustomNameParser();
-		
-		int total=0,skipped=0,sucess=0,reprocessed=0;
-		reader.readNext();
-		//formatter.parser=thirdPartyParser;
-		
-		parser=customParser;
-		boolean isReprocessed=false;
-		int begin=80000;
-		int end=81000;
-		while((record=reader.readNext())!=null) {
+			currentRec++;
+			if(currentRec<=begin)
+				continue;	
 			
+						
+			totalCnt++;					
+			String name = record[nameFieldIndex];				
 			
-			total++;	
-			
-			if(total<begin)
-				continue;
-			
-			
-			
-			parser=customParser;	
-			isReprocessed=false;
-			target = new String[4];
-			String name = record[73];			
-			
-			String[] names=new String[4];
-			
-			if(notAName(name)) {
-				skipped++;
-				names[0]=name;
-				output.add(names);   
-				String[] skip = {name};
-				//skippedRecs.add(skip);
+			if(Utils.isOrganization(name)) {
+				processOrganization(record,name);				
 				continue;				
 			}
 			
-			name = preProcess(name);			
+			name = Utils.preProcess(name);	
+			parser = customParser;
 			Name formattedName = parser.parse(name);
 			
-			if(formattedName==null) { //Custom Parser cannot process the pattern
+			if(formattedName==null) { //Custom Parser couldn't process the pattern
 				parser=thirdPartyParser;	
-				formattedName = parser.parse(name);	
-				if(formattedName!=null) {
-					reprocessedRecs.add(formattedName.toStringArray());
-					 reprocessed++;
-				}
-			}		
+				formattedName = parser.parse(name);					
+				if(formattedName!=null) //Name service was able to format
+					processReprocessedRecord(formattedName);			
+			}			
 			
-			 if(formattedName == null) { 
-					names[0]=name;
-					skipped++;
-					String[] skip = {name};
-					skippedRecs.add(skip);
-					continue;
-			 }	
+			 if(formattedName == null) { //Both parsers could not format
+				    if(Utils.isOrgPostProcess(name))				    
+				    	processOrganization(record,name);				    			    
+				    else //skip the record - not sure if its name or org				    
+					  processSkippedRecord(record,name);					  
+			        	
+				    continue;		
+			    }			 
 			 
-			 
+			processFormattedName(record,formattedName);				
 			
-				
-					//System.out.println("Reprocessed!!!:"+name);
-		
-					sucess++;					
-					names = formattedName.toStringArray();
-					
-	
-						
-			output.add(names);  
+			if((totalCnt%100)==0) 
+				updateStatus(false);				
 			
-			
-			if((total%100)==0) {
-				updateStatus(total,false);
-				//timeElapsed();
-			}
-			
-			
-			
-			if(total>end)
-				break;
-			
-			
+			if(totalCnt>end)
+				break;			
                
 		}
 		
-		csvWriter.writeAll(output);
-		csvWriter.close();
-		
-		skipcsvWriter.writeAll(skippedRecs);
-		skipcsvWriter.close();
-		
-		reprocesscsvWriter.writeAll(reprocessedRecs);
-		reprocesscsvWriter.close();
 		reader.close();
 		
+		NameWriter nameWriter =new  NameWriter(saveFile);		
+		nameWriter.writeOutputFile(outputRecords);
+		nameWriter.writeOrgFile(orgRecords);
+		nameWriter.writeReprocessedFile(reprocessedRecords);
+		nameWriter.writeSkippedFile(skippedRecords);
 		
+		reportStatistics();
 		
-		System.out.println("Total:"+total);
-		System.out.println("Sucess:"+sucess);
-		System.out.println("Skipped:"+skipped);
-		System.out.println("Reprocessed:"+reprocessed);
-		System.out.println("Sucess rate:"+(sucess*100.0)/(total-begin));
-		updateStatus(total,true);
-		}
-		catch(FileNotFoundException fnfe)
+		}catch(FileNotFoundException fnfe)
 		{
 			fnfe.printStackTrace();		
 			updateError(fnfe.getMessage());
 			
-		}
-		catch(IOException ioe) {
+		}catch(IOException ioe) {
 			ioe.printStackTrace();
 			updateError(ioe.getMessage());
-		}
-		
-		
+		}finally {
+			
+			try {
+			reader.close();
+			}catch(IOException ioe)
+			{
+				ioe.printStackTrace();
+			}
+		}		
 		
 	}
 	
 	
-	private void updateStatus(int numRecs,boolean completed) {
+	private void reportStatistics() {
 		
-		System.out.println("Number of Recs Processed:"+numRecs);
+		System.out.println("Total:"+totalCnt);		
+		System.out.println("Organizations:"+orgCnt);
+		System.out.println("Reprocessed:"+reprocessedCnt);
+		System.out.println("Skipped:"+skippedCnt);
+		System.out.println("Sucess rate:"+((namesCnt+orgCnt)*100.0)/(totalCnt));
+		updateStatus(true);
+
 		
+	}
+	
+	
+	
+	private void initialize(String[] record) {
+		
+	String[] target = {"Original Text","First Name","Middle Name","Last Name"};
+		
+		outputRecords = new ArrayList<String[]>();
+		orgRecords = new ArrayList<String[]>();
+		reprocessedRecords = new ArrayList<String[]>();
+		skippedRecords = new ArrayList<String[]>();
+		allProcessedRecords = new ArrayList<String[]>();
+		reprocessedRecords.add(target);	
+		allProcessedRecords.add(target);
+			
+		
+		String[] newFields = {"FIRST_NAME","MIDDLE_NAME","LAST_NAME","ORGANIZATION"};
+		String[] finalHeader = Utils.insertInArray(record, newFields, nameFieldIndex+1);
+		
+		outputRecords.add(finalHeader);		
+		
+		thirdPartyParser = new ThirdPartyNameParser();
+		customParser = new CustomNameParser();		
+		parser=customParser;
+		
+		
+	}
+	
+	private void updateStatus(boolean completed) {
+		
+		System.out.println("Number of Recs Processed:"+totalCnt);		
 		
 		if(listener==null)
 			return;
 		
 		StatusEvent status = new StatusEvent();
-		status.recordsProcessed=numRecs;
+		status.recordsProcessed=totalCnt;
+		status.orgCnt=orgCnt;
+		status.skippedCnt=skippedCnt;
+		status.namesCnt=namesCnt;
 		status.timeElapsed=timeElapsed();
 		status.completed=completed;
 		listener.statusChanged(status);
@@ -200,100 +206,50 @@ public class NameProcessor implements Runnable{
 		
 	}
 	
+	private void processOrganization(String[] record, String name) {
+		orgCnt++;
+		String[] names=new String[4];
+		names[3]=name;
+		allProcessedRecords.add(names);
+		String[] out=Utils.insertInArray(record,names,nameFieldIndex+1);
+		outputRecords.add(out);   
+		String[] org = {name};
+		orgRecords.add(org);
+	}
+		
 	
+	private void processSkippedRecord(String[] record, String name) {
+		String[] names=new String[4];
+		names[0]=name;
+		String[] empty = {null,null,null,null}; //send all empty values to csv
+		String[] out=Utils.insertInArray(record,empty,nameFieldIndex+1);
+		skippedCnt++;
+		String[] skip = {name};
+		skippedRecords.add(skip);
+		outputRecords.add(out);
+
+		
+	}
+	private void processFormattedName(String[] record, Name formattedName) {
+		
+		String[] names = formattedName.toStringArray();
+		String[] out = Utils.insertInArray(record, names, nameFieldIndex+1);						
+        outputRecords.add(out); 
+        namesCnt++;
+		
+	}
+	private void processReprocessedRecord(Name formattedName) {
+		
+		 reprocessedRecords.add(formattedName.toStringArrayFull());
+		 reprocessedCnt++;	
+		
+	}
+		
 	public void addStatusListener(StatusListener listener) {
 		
 		this.listener=listener;
 	}
-	
-	
-	private static boolean notAName(String name) {
-		
-		
-		name = name.toUpperCase();
-		
-		String[] excludedWords = {" LLC"," INC","ENTERPRISE","PROPERTY","MGMT","COMMUNI","GROUP",
-				       "ESTAT","MANAGE","LIMIT","PARTNER","HABITAT","COUNCIL",
-				       "REALTY","LTD","PRODUCTS","HOUSING","PROGRAM","APARTM","TOWN","COUNTY",
-				       "TRUST","HOUSE","AUTHORIT","DEVELOP","SELLER","TIITF","CHURCH","DISTRIBUTOR","INDUSTR",
-				       "DEPARTM","STATE"," COMPA","SOUTHERN","INVEST","CENTER","PROPERT","LLP",
-				       "ASSET","SERVICE","NATIONAL","BANK","AMERICA","UNIVERS","CORP","ASSOC",
-				       "SCHOOL","FUND","CAPITAL","L.L.C","L.C","HOUSING","LENDING","FUNDING",
-				       "MORTGAGE","JACKSONVILLE","COOPERAT","PROFESSION","P.A","HOLDINGS","CREDIT",
-				       "COUNTRY","OWNER","MOBILE","LEASING","EXPORT","L L P","VENTURE","HOMES",
-				       "AVENUE","STORE","SOCIETY"," FARMS","MANUFACTURE","CONSTRUCTION","L L C",
-				        " AT "," OF "," FOR ","FELLOWSHIP","ASSEMBL"," LP","DISTRICT","BAPTIST",
-				        "SUBSIDIARY","SOUTHEAST","UNITED","MISSIONARY","SPRINGS"," EST"};
-		
-		
-		for(String exc:excludedWords) {
-			
-			if(name.contains(exc)) {
-				
-				//System.out.println("SKIPPED!!!!:"+name +" contains "+exc);
-				return true;
-			}
-		}
-		
-		
-		Pattern pattern = Pattern.compile(".*[0-9]{2,}.*");
-		Matcher m = pattern.matcher(name);
-		if(m.matches()) {
-			//System.out.println("NUMBER IN Name!!!!!!!!!:"+name);
-			return true;
-		
-		}
-		
-		if(name.endsWith(" CO"))
-			return true;
-		
-		
-		if(name.contains(" CO "))
-			return true;
-		
-		if(name.endsWith(" L P"))
-			return true;
-		
-		if(name.endsWith(" LL"))
-			return true;
-		
-		return false;
-	}
-	
-	
-		
-	private String preProcess(String str) {
-		
-		
-		str = str.toUpperCase().trim();
-		
-		if(str.contains(" JR"))
-			str=str.replace(" JR", "");
-		
-		if(str.contains(" SR"))
-			str=str.replace(" SR", "");
-		
-		if(str.contains(" ET AL"))
-			str=str.replace(" ET AL", "");
-		
-		if(str.contains(" ETAL"))
-			str=str.replace(" ETAL", "");
-		
-		if(str.contains("B/E"))
-			str=str.replace("B/E", "");
-		
-		if(str.contains("R/S"))
-			str=str.replace("R/S", "");
-		
-		if(str.endsWith("II")||str.endsWith("III")||str.endsWith("IV")||str.endsWith("VI"))
-			str=str.substring(0,str.length()-2).trim();
-		
-		
-		str = str.trim().replaceAll(" +", " ");
-					
-		return str;
-	}
-	
+
 	
 	private  long timeElapsed() {
 		
@@ -305,6 +261,8 @@ public class NameProcessor implements Runnable{
 		 
 		
 	}
+	
+	
 	
 	
 }

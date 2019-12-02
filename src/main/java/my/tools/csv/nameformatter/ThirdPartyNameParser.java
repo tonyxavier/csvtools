@@ -12,7 +12,6 @@ import javax.ws.rs.core.Response;
 
 import org.apache.http.impl.conn.PoolingHttpClientConnectionManager;
 import org.glassfish.jersey.apache.connector.ApacheClientProperties;
-import org.glassfish.jersey.apache.connector.ApacheConnectorProvider;
 import org.glassfish.jersey.client.ClientConfig;
 import org.glassfish.jersey.client.ClientProperties;
 import org.json.JSONArray;
@@ -51,7 +50,7 @@ public class ThirdPartyNameParser implements NameParser{
 		String uri = "https://v2.parse.name/api/v2/names/parse?q="+encode(text);
 		
 		Name formattedName=null;
-		
+		JSONObject jobj=null;
 		try {			
 		
 			formattedName =new Name();
@@ -74,7 +73,7 @@ public class ThirdPartyNameParser implements NameParser{
 
 		
 		
-		JSONObject jobj = new JSONObject(output);
+		jobj = new JSONObject(output);
 		
 		JSONArray names= jobj.getJSONArray("name");
 		
@@ -86,13 +85,7 @@ public class ThirdPartyNameParser implements NameParser{
 		formattedName.lastName=surname;
 		String secName=name.getString("secondary_name");
 		formattedName.middleName=secName;
-	//	System.out.println(given_name +"  "+secName+" "+surname);
-		
-		
-		
-		
-        
-        
+	//	System.out.println(given_name +"  "+secName+" "+surname);    
         
 				
 		return formattedName;
@@ -101,10 +94,35 @@ public class ThirdPartyNameParser implements NameParser{
 
 		//e.printStackTrace();
 		 // System.out.println(formattedName.firstName +"  "+formattedName.middleName+" "+formattedName.lastName);
-		return formattedName;
+		  
+		  formattedName.organizationName=getOrganization(jobj);
+		  
+		  if(formattedName.isEmpty())
+			  return null;
+		  else		  
+		     return formattedName;
 
 	  }
-
+	}
+		
+		private String getOrganization(JSONObject jobj) {
+			
+			
+			try {
+			JSONArray orgs= jobj.getJSONArray("organization");			 
+			JSONObject org = orgs.getJSONObject(0);
+			String orgName=org.getString("name");
+			System.out.println("Found organization!!!"+orgName);
+			return orgName;
+			}
+			catch(Exception e) {
+				//e.printStackTrace();
+				return null;
+				
+			}
+			
+		
+		
 		
 		
 	}
