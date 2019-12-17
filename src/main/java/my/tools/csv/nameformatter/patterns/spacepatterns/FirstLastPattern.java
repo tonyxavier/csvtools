@@ -1,8 +1,9 @@
-package my.tools.csv.nameformatter.patterns;
+package my.tools.csv.nameformatter.patterns.spacepatterns;
 
 import java.util.regex.Pattern;
 
 import my.tools.csv.nameformatter.Name;
+import my.tools.csv.nameformatter.patterns.NamePattern;
 
 public class FirstLastPattern extends NamePattern{	 
 	
@@ -20,8 +21,8 @@ try {
 		
 		String[] names = originalText.split(" ");		
 		outputName.originalText=originalText;
-		outputName.firstName=names[0];
-		outputName.lastName=names[1];
+		outputName.firstName=names[1];
+		outputName.lastName=names[0];
 		outputName.transformed=true;
 		outputName.capitalize();
 	}

@@ -12,81 +12,102 @@ public class NameWriter {
 	
 	private String outputDirectory;
 	private File outputFile;
-	
-	
+	private CSVWriter outputCsvWriter,orgCsvWriter,skippedCsvWriter,reprocessCsvWriter,allRecordsCsvwriter;
+	private FileWriter outputFilewriter,orgFilewriter,skippedFilewriter,reprocessFilewriter,allRecordsFilewriter;
 	public NameWriter(File outputFile) {
 			
 		this.outputFile=outputFile;	
 		outputDirectory=Utils.getDirectoryName(outputFile);	
 		
-	}
-	
-	public boolean writeOutputFile(List<String[]> outputRecords) {		
-		
 		try {
-			FileWriter outputFilewriter = new FileWriter(outputFile);
-		    CSVWriter outputCsvWriter = new CSVWriter(outputFilewriter);
-		    outputCsvWriter.writeAll(outputRecords);
-		    outputCsvWriter.close();
-		    return true;
-		    }catch(IOException ioe)
-		    {
+		outputFilewriter = new FileWriter(outputFile);
+	    outputCsvWriter = new CSVWriter(outputFilewriter);
+	    
+	    
+	    orgFilewriter = new FileWriter(outputDirectory+"//organizations.csv");
+		orgCsvWriter = new CSVWriter(orgFilewriter);
+		
+		skippedFilewriter = new FileWriter(outputDirectory+"//skipped.csv");
+		skippedCsvWriter = new CSVWriter(skippedFilewriter);
+		
+		 reprocessFilewriter = new FileWriter(outputDirectory+"//reprocessed.csv");
+		  reprocessCsvWriter = new CSVWriter(reprocessFilewriter);
+		  
+		  allRecordsFilewriter = new FileWriter(outputDirectory+"//allrecords.csv");
+		   allRecordsCsvwriter = new CSVWriter(allRecordsFilewriter);
+	    
+		}catch(IOException ioe) {
 			ioe.printStackTrace();
-			return false;			
-		    }
+		}
 		
 	}
 	
-    public boolean writeOrgFile(List<String[]> orgRecords) {		
+	public void writeOutputFile(List<String[]> outputRecords) {		
 		
 	
-	    try {
-		   FileWriter orgFilewriter = new FileWriter(outputDirectory+"//organizations.csv");
-		   CSVWriter orgCsvWriter = new CSVWriter(orgFilewriter);
+			
+		    outputCsvWriter.writeAll(outputRecords);
+		    
+		  
+		    
+		
+	}
+	
+    public void writeOrgFile(List<String[]> orgRecords) {		
+		
+	
+
+		    
 		   orgCsvWriter.writeAll(orgRecords);
-		   orgCsvWriter.close();
-          }catch(IOException ioe){
-	        ioe.printStackTrace();
-	        return false;
-	
-            }	
-		return true;
-		
+		  
+          
 	   }
 
     
     
-    public boolean writeSkippedFile(List<String[]> skippedRecords) {	
+    public void writeSkippedFile(List<String[]> skippedRecords) {	
 	
-	   try {
-		  FileWriter skippedFilewriter = new FileWriter(outputDirectory+"//skipped.csv");
-		  CSVWriter skippedCsvWriter = new CSVWriter(skippedFilewriter);
+	  
+		  
 		  skippedCsvWriter.writeAll(skippedRecords);
-		  skippedCsvWriter.close();		
+		 
 	
-         }catch(IOException ioe){
-	       ioe.printStackTrace();
-	       return false;
-	
-          }	
-	      return true;
          }
 	
 
-   public boolean writeReprocessedFile(List<String[]> reprocessedRecords) {	
+   public void writeReprocessedFile(List<String[]> reprocessedRecords) {	
 	
+	  
+	    	
+		   reprocessCsvWriter.writeAll(reprocessedRecords);		   	
+	
+        
+	 
+   }
+   
+   public void writeAllRecordsFile(List<String[]> allRecords) {	
+		
+	   
+	    	
+		   allRecordsCsvwriter.writeAll(allRecords);	
+        
+   }
+
+   
+   public void closeAllWriters() {
+	   
+		
 	   try {
-	    	FileWriter reprocessFilewriter = new FileWriter(outputDirectory+"//reprocessed.csv");
-		   CSVWriter reprocessCsvWriter = new CSVWriter(reprocessFilewriter);
-		   reprocessCsvWriter.writeAll(reprocessedRecords);
-		   reprocessCsvWriter.close();		
-	
-         }catch(IOException ioe){
-	     ioe.printStackTrace();
-	      return false;	
-          }
-	
-	  return true;
+	   
+	   outputCsvWriter.close();   
+	   allRecordsCsvwriter.close();	 
+	   reprocessCsvWriter.close();	
+	   skippedCsvWriter.close();		
+	   orgCsvWriter.close();
+	   }catch(IOException ioe){
+		   ioe.printStackTrace();
+	   
+       }
    }
 	
 	

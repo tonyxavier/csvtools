@@ -1,8 +1,9 @@
-package my.tools.csv.nameformatter.patterns;
+package my.tools.csv.nameformatter.patterns.spacepatterns;
 
 import java.util.regex.Pattern;
 
 import my.tools.csv.nameformatter.Name;
+import my.tools.csv.nameformatter.patterns.NamePattern;
 
 public class FirstInitialLast extends NamePattern{
 	
@@ -25,7 +26,7 @@ try {
 	}
 	catch(Exception e) {
 		
-		System.out.println("Failure processing FirstAndInitials:"+outputName.toString());
+		System.out.println("Failure processing FirstInitialLast:"+outputName.toString());
 		e.printStackTrace();
 	
 		

@@ -6,17 +6,18 @@ import java.awt.Toolkit;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.io.File;
-
+import java.text.DecimalFormat;
 
 import javax.swing.JButton;
+import javax.swing.JCheckBox;
 import javax.swing.JFileChooser;
 import javax.swing.JFrame;
 import javax.swing.JLabel;
+import javax.swing.JTextField;
+import javax.swing.event.DocumentEvent;
+import javax.swing.event.DocumentListener;
 import javax.swing.filechooser.FileFilter;
 import javax.swing.filechooser.FileNameExtensionFilter;
-
-
-
 
 
 public class Namer extends JFrame implements StatusListener{
@@ -34,6 +35,8 @@ public class Namer extends JFrame implements StatusListener{
 	private static final int BUTTON_WIDTH=(SCREEN_WIDTH*12)/100;
 	private static final int BUTTON_HEIGHT=(int)(SCREEN_HEIGHT*2.7f)/100;
 	
+	
+	private static final int LABEL_WIDTH_SMALLEST=(SCREEN_WIDTH*9)/100;
 	private static final int LABEL_WIDTH_SMALL=(SCREEN_WIDTH*10)/100;
 	private static final int LABEL_WIDTH_MEDIUM=(SCREEN_WIDTH*15)/100;
 	private static final int LABEL_WIDTH_LARGE=(SCREEN_WIDTH*20)/100;
@@ -43,6 +46,7 @@ public class Namer extends JFrame implements StatusListener{
 	private static final int LEFT_MARGIN=(SCREEN_WIDTH*5)/100;
 	private static final int TOP_MARGIN=(SCREEN_HEIGHT*6)/100;
 	private static final int BOTTOM_MARGIN=(SCREEN_HEIGHT*5)/100;
+	private static final int WIDTH_SPACING_SMALLEST=(SCREEN_HEIGHT*1)/100;
 	private static final int WIDTH_SPACING_SMALL=(SCREEN_HEIGHT*2)/100;
 	private static final int WIDTH_SPACING_MEDIUM=(SCREEN_HEIGHT*4)/100;	
 	private static final int HEIGHT_SPACING_SMALL=(SCREEN_HEIGHT*2)/100;
@@ -56,10 +60,12 @@ public class Namer extends JFrame implements StatusListener{
 
 	private static Dimension applicationSize=new Dimension(APPLICATION_WIDTH,APPLICATION_HEIGHT);	
 
-	private JLabel lbl_SelectUploadFile,lbl_provideOutputFileName,lbl_SelectedUploadFile,lbl_processStatus,lbl_SelectedOutputFile;
+	private JLabel lbl_nameFieldName,lbl_SelectUploadFile,lbl_provideOutputFileName,lbl_SelectedUploadFile,lbl_processStatus,lbl_SelectedOutputFile;
 	private JButton btn_selectUploadFile,btn_startProcessing,btn_selectOutputFile;
+	private JTextField tf_fieldName;
+	JCheckBox cb_fastMode;
 	
-	private boolean dataFileSelected=false,outputFileSelected=false;
+	private boolean dataFileSelected=false,outputFileSelected=false,invalidFile=false;
 	
 	private NameProcessor processor;
 	
@@ -69,9 +75,69 @@ public class Namer extends JFrame implements StatusListener{
 		
 		
 		
+		 int startX = LEFT_MARGIN+LABEL_WIDTH_SMALL+WIDTH_SPACING_SMALL;
+		
+		 cb_fastMode = new JCheckBox("FASTMODE"); 
+		 cb_fastMode.setLocation(startX,TOP_MARGIN-HEIGHT_SPACING_MEDIUM);
+		 cb_fastMode.setVisible(true);
+		 cb_fastMode.setSize(LABEL_WIDTH_SMALLEST, LABEL_HEIGHT);		 
+		 add(cb_fastMode);
+		 cb_fastMode.setSelected(true);
+		/******Row zero**********************/
+		
+		
+		
+		 int zerothRowX = LEFT_MARGIN+WIDTH_SPACING_SMALL*2;
+		
+		 lbl_nameFieldName =new JLabel("Enter field name");		
+		 lbl_nameFieldName.setLocation(zerothRowX,TOP_MARGIN);
+		 lbl_nameFieldName.setVisible(true);
+		 lbl_nameFieldName.setSize(LABEL_WIDTH_SMALLEST, LABEL_HEIGHT);			 
+		 add(lbl_nameFieldName);
+		
+		
+		 
+		 tf_fieldName = new JTextField();
+		 tf_fieldName.setLocation(zerothRowX+LABEL_WIDTH_SMALLEST, TOP_MARGIN);
+		 tf_fieldName.setVisible(true);
+		 tf_fieldName.setSize(BUTTON_WIDTH, BUTTON_HEIGHT);
+		 tf_fieldName.getDocument().addDocumentListener(new DocumentListener() {
+			 
+			 public void changedUpdate(DocumentEvent e) {
+				 
+				 if(dataFileSelected && outputFileSelected)
+				 {
+					 btn_startProcessing.setEnabled(true);
+				 }
+				    
+				  }
+
+			public void insertUpdate(DocumentEvent e) {
+				 
+				 if(dataFileSelected && outputFileSelected)
+				 {
+					 btn_startProcessing.setEnabled(true);
+				 }
+				
+			}
+
+			public void removeUpdate(DocumentEvent e) {
+				
+			}
+			 
+			 
+		 });
+		 add(tf_fieldName);
+		 
+		
+		
 		/****First row********************************/
+		
+		
+		int firstRowY= TOP_MARGIN+LABEL_HEIGHT+HEIGHT_SPACING_MEDIUM; 
+		
 		 lbl_SelectUploadFile =new JLabel("Select data file");		
-		lbl_SelectUploadFile.setLocation(LEFT_MARGIN+WIDTH_SPACING_SMALL*3,TOP_MARGIN);
+		lbl_SelectUploadFile.setLocation(LEFT_MARGIN+WIDTH_SPACING_SMALL*3,firstRowY);
 		lbl_SelectUploadFile.setVisible(true);
 		lbl_SelectUploadFile.setSize(LABEL_WIDTH_SMALL, LABEL_HEIGHT);		
 		add(lbl_SelectUploadFile);
@@ -81,7 +147,7 @@ public class Namer extends JFrame implements StatusListener{
 		int secondColumnLocX=LEFT_MARGIN+LABEL_WIDTH_SMALL+WIDTH_SPACING_SMALL;
 		
 		 btn_selectUploadFile = new JButton("Select Data File");		
-		btn_selectUploadFile.setLocation(secondColumnLocX, TOP_MARGIN);
+		btn_selectUploadFile.setLocation(secondColumnLocX, firstRowY);
 		btn_selectUploadFile.setVisible(true);
 		btn_selectUploadFile.setSize(BUTTON_WIDTH, BUTTON_HEIGHT);
 		btn_selectUploadFile.addActionListener(new ActionListener(){
@@ -102,7 +168,7 @@ public class Namer extends JFrame implements StatusListener{
 				 if(dataFileSelected && outputFileSelected)
 				 {
 					 btn_startProcessing.setEnabled(true);
-					 processor= new NameProcessor(dataFile,saveFile);
+					 processor= new NameProcessor(dataFile,saveFile,tf_fieldName.getText(),cb_fastMode.isSelected());
 					 processor.addStatusListener(mainFrame);
 				 }
 				
@@ -116,18 +182,16 @@ public class Namer extends JFrame implements StatusListener{
 		int thirdColumnLocX = secondColumnLocX + BUTTON_WIDTH+WIDTH_SPACING_SMALL;
 		
 		lbl_SelectedUploadFile =new JLabel("");		
-		lbl_SelectedUploadFile.setLocation(thirdColumnLocX,TOP_MARGIN);
+		lbl_SelectedUploadFile.setLocation(thirdColumnLocX,firstRowY);
 		lbl_SelectedUploadFile.setVisible(true);
 		lbl_SelectedUploadFile.setSize(LABEL_WIDTH_MEDIUM, LABEL_HEIGHT);		
-		add(lbl_SelectedUploadFile);
-		
-	
+		add(lbl_SelectedUploadFile);	
 		
 		
 		/****Second row********************************/
 		
 		
-		int secondRowLocY=TOP_MARGIN+LABEL_HEIGHT+HEIGHT_SPACING_MEDIUM;
+		int secondRowLocY=firstRowY+LABEL_HEIGHT+HEIGHT_SPACING_MEDIUM;
 		
 		lbl_provideOutputFileName =new JLabel("Provide output file name");		
 		lbl_provideOutputFileName.setLocation(LEFT_MARGIN,secondRowLocY);
@@ -159,7 +223,7 @@ public class Namer extends JFrame implements StatusListener{
 					 if(dataFileSelected && outputFileSelected)
 					 {
 						 btn_startProcessing.setEnabled(true);
-						 processor= new NameProcessor(dataFile,saveFile);
+						 processor= new NameProcessor(dataFile,saveFile,tf_fieldName.getText(),cb_fastMode.isSelected());
 						 processor.addStatusListener(mainFrame);
 					 }
 					
@@ -270,6 +334,10 @@ public class Namer extends JFrame implements StatusListener{
 			 btn_selectOutputFile.setEnabled(true);
 			 
 			 lbl_processStatus.setText("Error! "+ event.errorMessage);
+			 
+			 if(event.errorMessage.contains("OWN_NAME"))
+				 this.invalidFile = true;
+			 
 			 return;
 			
 		}			
@@ -278,12 +346,13 @@ public class Namer extends JFrame implements StatusListener{
 		
 		if(event.completed)
 		{		
-			
+			 DecimalFormat df = new DecimalFormat("0.00");
 			 btn_selectUploadFile.setEnabled(true);
 			 btn_selectOutputFile.setEnabled(true);			 
 			 //lbl_processStatus.setText("Completed! "+ event.recordsProcessed+ " Records Processed in " + event.timeElapsed+ " Minutes");
-			 lbl_processStatus.setText("Completed! "+" Total:"+event.recordsProcessed+" Names:"+event.namesCnt+" Orgs:"+event.orgCnt+" Skipped:"+event.skippedCnt+" Success Rate:"+((event.namesCnt+event.orgCnt)*100.0)/(event.recordsProcessed)+"%");
-			 			
+			 lbl_processStatus.setText("Completed! "+" Total:"+event.recordsProcessed+" Names:"+event.namesCnt+" Orgs:"+event.orgCnt+" Skipped:"+event.skippedCnt+" Success Rate:"+df.format(((event.namesCnt+event.orgCnt)*100.0)/(event.recordsProcessed))+"%");
+			 
+			 repaint();
 		}
 		
 		

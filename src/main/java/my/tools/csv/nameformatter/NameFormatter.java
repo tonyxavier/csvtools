@@ -72,9 +72,7 @@ public class NameFormatter {
 			total++;	
 			
 			if(total<begin)
-				continue;
-			
-			
+				continue;			
 			
 			formatter.parser=customParser;	
 			isReprocessed=false;

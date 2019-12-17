@@ -8,13 +8,19 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
-
+import com.opencsv.CSVParser;
 import com.opencsv.CSVReader;
+
+import my.tools.csv.nameformatter.patterns.spacepatterns.FirstLastPattern;
 
 
 public class NameProcessor implements Runnable{
 
+	
+	private boolean FASTMODE=false;; //To skip trying with Names API
 	private NameParser parser;
 	private StatusListener listener;
 	private Instant startTime;	
@@ -29,10 +35,19 @@ public class NameProcessor implements Runnable{
 	private ThirdPartyNameParser thirdPartyParser;
 	private CustomNameParser customParser;
 	
+	private String originalName,fieldName;
 	
-	public NameProcessor(File dataFile,File saveFile) {
+	
+	
+	
+	public NameProcessor(File dataFile,File saveFile,String fieldName,boolean fastmode) {
 		this.dataFile=dataFile;
 		this.saveFile=saveFile;
+		this.FASTMODE = fastmode;
+		if(fieldName==null || fieldName.trim().length()<1)
+			this.fieldName="OWN_NAME";
+		else			
+		    this.fieldName=fieldName.trim();
 		
 	}	
 	
@@ -42,12 +57,15 @@ public class NameProcessor implements Runnable{
 	  try {			
 	    startTime = Instant.now();	
 		
-		reader = new CSVReader(new FileReader(dataFile));
+	    CSVParser csvParser = new CSVParser(CSVParser.DEFAULT_SEPARATOR, CSVParser.DEFAULT_QUOTE_CHARACTER, '\0', CSVParser.DEFAULT_STRICT_QUOTES);
+
+	   // System.setProperty("file.encoding", "UTF-8-BOM");
+		reader = new CSVReader(new FileReader(dataFile),0,csvParser);
 		
 		String[] record = reader.readNext();
-		nameFieldIndex = Utils.getCsvFieldIndex(record, "OWN_NAME");		
+		nameFieldIndex = Utils.getCsvFieldIndex(record, fieldName);		
 		if(nameFieldIndex==-1) {//The file does not have "OWN_NAME" field
-			updateError("Uploaded file does not have OWN_NAME field");			
+			updateError("Uploaded file does not have "+fieldName+" field");			
 			return;		
 			
 		 }
@@ -55,63 +73,111 @@ public class NameProcessor implements Runnable{
 		initialize(record);			
 				
 		int begin=0;		
-	    int end=140000;	
-	   // int end=Integer.MAX_VALUE;
-	    int currentRec=0;
+	    //int end=1000;	
+	    int end=Integer.MAX_VALUE;
+	    int currentRec=0,writeCount=0;
+	    NameWriter nameWriter =new  NameWriter(saveFile);
+	    
 		while((record=reader.readNext())!=null) {			
 			
 			currentRec++;
+			writeCount++;
+			
 			if(currentRec<=begin)
 				continue;	
 			
 						
 			totalCnt++;					
-			String name = record[nameFieldIndex];				
+			String name = record[nameFieldIndex];	
+			originalName=name;
 			
+			if(name!=null)
+				name=name.trim();			
+			
+			
+			if(name==null || name.length()<1 || skipRecord(name)) {
+				processSkippedRecord(record,name);
+				continue;
+			}	
+			
+			if(name!=null)
+				name=name.trim();
+				
 			if(Utils.isOrganization(name)) {
 				processOrganization(record,name);				
 				continue;				
 			}
 			
 			name = Utils.preProcess(name);	
+			
+			
+					
 			parser = customParser;
 			Name formattedName = parser.parse(name);
 			
-			if(formattedName==null) { //Custom Parser couldn't process the pattern
+			if(formattedName==null && MultipleNamesProcessor.isMultipleName(name)) 
+				formattedName = MultipleNamesProcessor.process(name);					
+			
+			
+			if(formattedName==null && !FASTMODE) { //Custom Parser couldn't process the pattern
 				parser=thirdPartyParser;	
 				formattedName = parser.parse(name);					
 				if(formattedName!=null) //Name service was able to format
 					processReprocessedRecord(formattedName);			
-			}			
+			}		
+			
 			
 			 if(formattedName == null) { //Both parsers could not format
 				    if(Utils.isOrgPostProcess(name))				    
 				    	processOrganization(record,name);				    			    
 				    else //skip the record - not sure if its name or org				    
-					  processSkippedRecord(record,name);					  
+					  processSkippedRecord(record,originalName);					  
 			        	
 				    continue;		
 			    }			 
 			 
-			processFormattedName(record,formattedName);				
+			processFormattedName(record,formattedName);	
 			
-			if((totalCnt%100)==0) 
-				updateStatus(false);				
+			updateStatus(false);						
 			
 			if(totalCnt>end)
-				break;			
+				break;	
+			
+			
+			if(writeCount>=100000) {
+				
+				nameWriter.writeOutputFile(outputRecords);
+				nameWriter.writeOrgFile(orgRecords);
+				nameWriter.writeReprocessedFile(reprocessedRecords);
+				nameWriter.writeSkippedFile(skippedRecords);
+				nameWriter.writeAllRecordsFile(allProcessedRecords);	
+				
+				
+				outputRecords.clear();
+				orgRecords.clear();
+				reprocessedRecords.clear();
+				skippedRecords.clear();
+				allProcessedRecords.clear();
+				
+				
+				writeCount=0;
+			}
+			
                
 		}
 		
 		reader.close();
 		
-		NameWriter nameWriter =new  NameWriter(saveFile);		
 		nameWriter.writeOutputFile(outputRecords);
 		nameWriter.writeOrgFile(orgRecords);
 		nameWriter.writeReprocessedFile(reprocessedRecords);
 		nameWriter.writeSkippedFile(skippedRecords);
+		nameWriter.writeAllRecordsFile(allProcessedRecords);	
+				
+		nameWriter.closeAllWriters();
 		
 		reportStatistics();
+		GlobalReporting.report();
 		
 		}catch(FileNotFoundException fnfe)
 		{
@@ -121,7 +187,10 @@ public class NameProcessor implements Runnable{
 		}catch(IOException ioe) {
 			ioe.printStackTrace();
 			updateError(ioe.getMessage());
-		}finally {
+		}catch(Exception e) {	  
+	       e.printStackTrace();
+	       updateError("Unexpected Error for record:"+totalCnt +" Name:"+originalName);		
+	    }finally{
 			
 			try {
 			reader.close();
@@ -150,7 +219,8 @@ public class NameProcessor implements Runnable{
 	
 	private void initialize(String[] record) {
 		
-	String[] target = {"Original Text","First Name","Middle Name","Last Name"};
+	String[] target = {"Original Text","First Name","Middle Name","Last Name","First Name 2","Middle Name 2","Last Name 2"};
+	String[] allrecordsHeader= {"Original Text","First Name","Middle Name","Last Name","First Name 2","Middle Name 2","Last Name 2","Organization"};
 		
 		outputRecords = new ArrayList<String[]>();
 		orgRecords = new ArrayList<String[]>();
@@ -158,10 +228,10 @@ public class NameProcessor implements Runnable{
 		skippedRecords = new ArrayList<String[]>();
 		allProcessedRecords = new ArrayList<String[]>();
 		reprocessedRecords.add(target);	
-		allProcessedRecords.add(target);
+		allProcessedRecords.add(allrecordsHeader);
 			
 		
-		String[] newFields = {"FIRST_NAME","MIDDLE_NAME","LAST_NAME","ORGANIZATION"};
+		String[] newFields = {fieldName+"_FIRST_NAME_1",fieldName+"_MIDDLE_NAME_1",fieldName+"_LAST_NAME_1",fieldName+"_FIRST_NAME_2",fieldName+"_MIDDLE_NAME_2",fieldName+"_LAST_NAME_2",fieldName+"_ORGANIZATION"};
 		String[] finalHeader = Utils.insertInArray(record, newFields, nameFieldIndex+1);
 		
 		outputRecords.add(finalHeader);		
@@ -175,7 +245,7 @@ public class NameProcessor implements Runnable{
 	
 	private void updateStatus(boolean completed) {
 		
-		System.out.println("Number of Recs Processed:"+totalCnt);		
+		//System.out.println("Number of Recs Processed:"+totalCnt);		
 		
 		if(listener==null)
 			return;
@@ -194,6 +264,8 @@ public class NameProcessor implements Runnable{
 	
 	private void updateError(String message) {
 		
+		System.out.println("Error at record:"+totalCnt);
+		
 		if(listener==null)
 			return;
 		
@@ -208,25 +280,33 @@ public class NameProcessor implements Runnable{
 	
 	private void processOrganization(String[] record, String name) {
 		orgCnt++;
-		String[] names=new String[4];
-		names[3]=name;
-		allProcessedRecords.add(names);
-		String[] out=Utils.insertInArray(record,names,nameFieldIndex+1);
+		String[] names=new String[7];
+		names[6]=originalName;		
+		String[] out=Utils.insertInArray(record,names,nameFieldIndex+1);		
 		outputRecords.add(out);   
-		String[] org = {name};
+		String[] org = {originalName};
 		orgRecords.add(org);
+		
+		String[] allFields = new String[8];
+		allFields[0]=originalName;
+		allFields[7]=originalName;
+		allProcessedRecords.add(allFields);
 	}
 		
 	
 	private void processSkippedRecord(String[] record, String name) {
-		String[] names=new String[4];
-		names[0]=name;
-		String[] empty = {null,null,null,null}; //send all empty values to csv
+		//String[] names=new String[4];
+		//names[0]=originalName;
+		String[] empty = {null,null,null,null,null,null,null}; //send all empty values to csv
 		String[] out=Utils.insertInArray(record,empty,nameFieldIndex+1);
 		skippedCnt++;
-		String[] skip = {name};
+		String[] skip = {originalName};
 		skippedRecords.add(skip);
 		outputRecords.add(out);
+		
+		String[] allFields = new String[8];
+		allFields[0]=originalName;
+		allProcessedRecords.add(allFields);
 
 		
 	}
@@ -236,6 +316,10 @@ public class NameProcessor implements Runnable{
 		String[] out = Utils.insertInArray(record, names, nameFieldIndex+1);						
         outputRecords.add(out); 
         namesCnt++;
+        
+        String[] allFields = formattedName.toStringAllFields();
+        allFields[0]=originalName;
+		allProcessedRecords.add(allFields);
 		
 	}
 	private void processReprocessedRecord(Name formattedName) {
@@ -244,6 +328,10 @@ public class NameProcessor implements Runnable{
 		 reprocessedCnt++;	
 		
 	}
+	
+	
+	
+	
 		
 	public void addStatusListener(StatusListener listener) {
 		
@@ -263,6 +351,33 @@ public class NameProcessor implements Runnable{
 	}
 	
 	
+	private boolean skipRecord(String name) {
+		
+		name = name.toUpperCase();
+		
+		String[] skipWords = {"TAXPAYER"};		        
+				       
+		
+		
+		for(String exc:skipWords) {
+			
+			if(name.contains(exc)) 					
+				return true;
+			
+		}
+		
+		
+		Pattern pattern = Pattern.compile("[a-zA-Z]{2,}"); //skip single words
+		
+		Matcher m =null;
+		m = pattern.matcher(name);
+		if(m.matches()) {
+			return true;
+		}
+		
+		
+		return false;
+	}
 	
 	
 }

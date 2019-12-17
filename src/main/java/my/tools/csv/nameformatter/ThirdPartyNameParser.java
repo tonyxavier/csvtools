@@ -77,8 +77,8 @@ public class ThirdPartyNameParser implements NameParser{
 		
 		JSONArray names= jobj.getJSONArray("name");
 		
-		 
-		JSONObject name = names.getJSONObject(0);
+	
+	    JSONObject name = names.getJSONObject(0);
 		String given_name=name.getString("given_name");
 		formattedName.firstName=given_name;
 		String surname = name.getString("surname");
@@ -86,7 +86,21 @@ public class ThirdPartyNameParser implements NameParser{
 		String secName=name.getString("secondary_name");
 		formattedName.middleName=secName;
 	//	System.out.println(given_name +"  "+secName+" "+surname);    
-        
+		
+		
+		if(names.length()>1)  //there are 2 names
+		{
+			    name = names.getJSONObject(1);
+				given_name=name.getString("given_name");
+				formattedName.firstName_2=given_name;
+				surname = name.getString("surname");
+				formattedName.lastName_2=surname;
+				secName=name.getString("secondary_name");
+				formattedName.middleName_2=secName;		
+			    System.out.println("Found 2 names!!!:"+formattedName.toString());
+			
+		}		
+			
 				
 		return formattedName;
 
@@ -111,8 +125,7 @@ public class ThirdPartyNameParser implements NameParser{
 			try {
 			JSONArray orgs= jobj.getJSONArray("organization");			 
 			JSONObject org = orgs.getJSONObject(0);
-			String orgName=org.getString("name");
-			System.out.println("Found organization!!!"+orgName);
+			String orgName=org.getString("name");			
 			return orgName;
 			}
 			catch(Exception e) {

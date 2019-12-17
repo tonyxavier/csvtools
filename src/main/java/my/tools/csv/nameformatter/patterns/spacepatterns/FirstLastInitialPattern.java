@@ -1,8 +1,9 @@
-package my.tools.csv.nameformatter.patterns;
+package my.tools.csv.nameformatter.patterns.spacepatterns;
 
 import java.util.regex.Pattern;
 
 import my.tools.csv.nameformatter.Name;
+import my.tools.csv.nameformatter.patterns.NamePattern;
 
 public class FirstLastInitialPattern extends NamePattern{
 	//Original text like Arun Kumar B
@@ -19,9 +20,9 @@ public class FirstLastInitialPattern extends NamePattern{
 		String[] names=originalText.split(" ");
 		outputName.originalText=originalText;
 		outputName.originalText=originalText;
-		outputName.firstName=names[0];
+		outputName.firstName=names[1];
 		outputName.middleName=names[2];
-		outputName.lastName=names[1];
+		outputName.lastName=names[0];
 		outputName.transformed=true;
 		outputName.capitalize();
 		}

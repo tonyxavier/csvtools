@@ -1,16 +1,14 @@
-package my.tools.csv.nameformatter.patterns;
+package my.tools.csv.nameformatter.patterns.spacepatterns;
 
 import java.util.regex.Pattern;
 
 import my.tools.csv.nameformatter.Name;
+import my.tools.csv.nameformatter.patterns.NamePattern;
 
-public class FirstAndInitials extends NamePattern{
-
+public class LastFirst extends NamePattern{
 	
-public static final Pattern pattern = Pattern.compile("[a-zA-Z][a-zA-Z]+\\s[a-zA-Z]{1}");
-
-	
-	public FirstAndInitials(String text) {
+	public static final Pattern pattern = Pattern.compile(NAME+SPACE+NAME);
+	public LastFirst(String text) {
     	originalText=text;
     }
 	
@@ -20,14 +18,14 @@ try {
 		
 		String[] names = originalText.trim().split(" ");		
 		outputName.originalText=originalText;
-		outputName.firstName=names[0];
-		outputName.lastName=names[1];
+		outputName.firstName=names[1];
+		outputName.lastName=names[0];
 		outputName.transformed=true;
 		outputName.capitalize();
 	}
 	catch(Exception e) {
 		
-		System.out.println("Failure processing FirstAndInitials:"+outputName.toString());
+		System.out.println("Failure processing LastFirst:"+outputName.toString());
 		e.printStackTrace();
 	
 		
@@ -35,6 +33,8 @@ try {
 		
 		return outputName;
 	}
+
+
 
 
 }

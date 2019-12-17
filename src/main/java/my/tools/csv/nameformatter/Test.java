@@ -7,26 +7,34 @@ import my.tools.csv.nameformatter.patterns.NamePattern;
 
 public class Test {
 	
+	protected static String NAME = "([a-zA-Z]+[-']?[a-zA-Z]+|[a-zA-Z])";
+	protected static String SPACE = "\\s";
+	protected static String COMMA =",";
+	
+
+	
 	public static void main(String[] args) {
 		
-		String str="SUNDY J MICHAEL X";
-		
-		//str=preProcess( str);
-		//System.out.println(str);
+		String str="MARIN MIGUEL ANGEL CARMONA";
 		
 		patternTest(str);
 		
-		NamePattern namePatterns = NamePatternFactory.getNamePattern(str);
-		CustomNameParser customParser = new CustomNameParser();
-		Name formattedName = customParser.parse(str);
-		//System.out.println(formattedName);
 		
+		
+				
 	}
 	
 	
+private static String insertSpaceAfterComma(int i,String str) {
+		
+		String str1=str.substring(0, i+1)+" "+str.substring(i+1, str.length());
+		return str1;
+		
+	}
+	
 	private static void patternTest(String str) {
 		
-		Pattern pattern = Pattern.compile("[a-zA-Z][a-zA-Z]+\\s[a-zA-Z]{1}\\s[a-zA-Z][a-zA-Z]+");
+		Pattern pattern = Pattern.compile(NAME+SPACE+NAME+SPACE+NAME+SPACE+NAME);
 		Matcher m = pattern.matcher(str);
 		
 		if(m.matches()) {
@@ -73,6 +81,16 @@ public class Test {
 			return str;
 		}
 		
-	
+		private static String capitalizeWord(String str) {
+			
+			
+			
+			
+		    str = str.toLowerCase();
+			return str.substring(0, 1).toUpperCase() + str.substring(1);
+
+			
+		}
+		
 
 }
